@@ -1,0 +1,180 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展 | 优秀的守夜人</title><meta name="author" content="优秀的守夜人"><meta name="copyright" content="优秀的守夜人"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="ffffff"><meta name="description" content="论文信息出处：J. Zeng, M. Kou, and H. Yao, “KunlunTVM: A Compilation Framework for Kunlun Chip Supporting Both Training and Inference,” in Proceedings of the Great Lakes Symposium on VLSI 2022, Irvine CA USA">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展">
+<meta property="og:url" content="http://youxiudeshouyeren.github.io/2023/01/07/tvm-2/index.html">
+<meta property="og:site_name" content="优秀的守夜人">
+<meta property="og:description" content="论文信息出处：J. Zeng, M. Kou, and H. Yao, “KunlunTVM: A Compilation Framework for Kunlun Chip Supporting Both Training and Inference,” in Proceedings of the Great Lakes Symposium on VLSI 2022, Irvine CA USA">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youxiudeshouyeren.github.io/img/color1.png">
+<meta property="article:published_time" content="2023-01-07T09:58:54.000Z">
+<meta property="article:modified_time" content="2023-01-07T10:05:15.756Z">
+<meta property="article:author" content="优秀的守夜人">
+<meta property="article:tag" content="TVM">
+<meta property="article:tag" content="论文调研">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youxiudeshouyeren.github.io/img/color1.png"><link rel="shortcut icon" href="../../../../img/favicon.png"><link rel="canonical" href="http://youxiudeshouyeren.github.io/2023/01/07/tvm-2/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="stylesheet" href="../../../../css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2023-01-07 18:05:15'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 6.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/figure.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="tags/"><div class="headline">标签</div><div class="length-num">5</div></a><a href="categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="index.html"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('../../../../img/color1.png')"><nav id="nav"><span id="blog_name"><a id="site-name" href="index.html">优秀的守夜人</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="index.html"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2023-01-07T09:58:54.000Z" title="发表于 2023-01-07 17:58:54">2023-01-07</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2023-01-07T10:05:15.756Z" title="更新于 2023-01-07 18:05:15">2023-01-07</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="../../../../categories/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E5%99%A8/">深度学习编译器</a></span></div><div class="meta-secondline"></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h2 id="论文信息"><a href="#论文信息" class="headerlink" title="论文信息"></a>论文信息</h2><p><strong>出处：</strong>J. Zeng, M. Kou, and H. Yao, “KunlunTVM: A Compilation Framework for Kunlun Chip Supporting Both Training and Inference,” in <em>Proceedings of the Great Lakes Symposium on VLSI 2022</em>, Irvine CA USA, Jun. 2022, pp. 299–304. doi: <a target="_blank" rel="noopener" href="https://doi.org/10.1145/3526241.3530316">10.1145/3526241.3530316</a>.</p>
+<p><strong>简介：</strong>为昆仑芯片开发的端到端编译器，基于TVM扩展，名为KunlunTVM，支持在昆仑芯片上的训练和推理任务。该方法针对不同后端的TVM框架是通用且可扩展的，可以借鉴其设计思路，学习如何为新后端添加编译器工具链。</p>
+<p><strong>主要贡献</strong>：</p>
+<ul>
+<li>在昆仑芯片上的基于TVM的端到端编译器，可支持各种现代神经网络模型</li>
+<li>训练计算图优化策略，旨在提高训练性能</li>
+<li>专用的内存管理算法，针对昆仑芯片的分层存储提升了内存分配和访问性能</li>
+</ul>
+<h2 id="KunlunTVM概述"><a href="#KunlunTVM概述" class="headerlink" title="KunlunTVM概述"></a>KunlunTVM概述</h2><p><img src="/2023/01/07/tvm-2/v2-2e5b6f8003fd8d9584f4016a964e6bd0_720w.png" alt="img"></p>
+<p><strong>前端：</strong></p>
+<p>1.直接采用relay生成的反向传播计算图存在冗余算子，在训练时对性能有很大负面影响。<strong>改进</strong>：因此KunlunTVM在高层图优化时提出了一种冗余算子消除的方法来进行了优化。</p>
+<p>2.在relay中，一旦变量被定义就无法修改，因此不支持在训练过程中更新relay中的参数变量。可能的解决方法是更新在计算图之外的权重参数，即更新host端（CPU）数据。在训练时从device端（昆仑芯片）获得梯度，根据梯度下降法更新host上的权重，host再将更新的权重参数送往device。该方法在host和device之间引入了不必要的数据开销。<strong>改进：</strong>在训练计算图中插入名为updater的算子，直接更新device端数据，避免数据传输。</p>
+<p><strong>后端：</strong></p>
+<p>1.TVM的默认内存管理方法在每次训练迭代分配、释放所需的内存，造成冗余。<strong>改进：</strong>设计了专用的基于池的内存管理方法。</p>
+<p>2.使用TVM的BYOC机制进行代码生成</p>
+<h2 id="图优化策略"><a href="#图优化策略" class="headerlink" title="图优化策略"></a>图优化策略</h2><h3 id="冗余算子消除"><a href="#冗余算子消除" class="headerlink" title="冗余算子消除"></a>冗余算子消除</h3><p><img src="/2023/01/07/tvm-2/v2-ee298ef7b1c201821180d193550338b1_720w.png" alt="img"></p>
+<p>主要有加0和乘1这两种冗余，上图蓝色为冗余操作，红色为消除冗余后操作。</p>
+<p>下图为冗余算子占的比例：不太清楚这种冗余在反向传播计算图中出现的原因，论文中也没有解释，或许是对自己求了一次导？？？</p>
+<p><img src="/2023/01/07/tvm-2/v2-49316d9ebc234a345df882aed8795eaa_720w.png" alt="img"></p>
+<h3 id="updater算子"><a href="#updater算子" class="headerlink" title="updater算子"></a>updater算子</h3><p><img src="/2023/01/07/tvm-2/v2-cd033569e396acfb03c7ea25a3b39ab2_720w.png" alt="img"></p>
+<p>如上图，左边为冗余的更新方式，需要经过一遍CPU将更新后的值再送往芯片上。右边为插入Updater算子后的更新方式，直接在芯片上进行了修改。relay将算子看做函数调用，可以将其实现分派到低级编译器中。在这里updater在relay是个函数调用，具体实现是昆仑芯片提供的API，连接到芯片的动态链接库中。</p>
+<h2 id="内存管理"><a href="#内存管理" class="headerlink" title="内存管理"></a>内存管理</h2><p><img src="/2023/01/07/tvm-2/v2-92ad0ea6ab781ac40dde39c773358d86_720w.png" alt="img"></p>
+<p>上图为昆仑芯片的存储架构。有全局存储、共享存储、本地存储。每个XPU核只能直接访问本地存储，意味着从CPU传递到XPU核的数据必须经过全局存储，带来了重复的内存分配和释放。</p>
+<h3 id="传统的内存池算法"><a href="#传统的内存池算法" class="headerlink" title="传统的内存池算法"></a>传统的内存池算法</h3><p><img src="/2023/01/07/tvm-2/v2-fb58d425bf94f0b0d59125ef2cb9c15b_720w.png" alt="img"></p>
+<p>上图左边为随机分配，地址较分散，无法有效利用cache机制的局部性来加速。右边是基于池的分配方法，地址连续。但是由于昆仑芯片容量受限，不允许传统基于池的方法分配大量连续内存。</p>
+<h3 id="专用内存管理算法"><a href="#专用内存管理算法" class="headerlink" title="专用内存管理算法"></a>专用内存管理算法</h3><p>该方法主要包括训练计算图的遍历和内存分配两个步骤。</p>
+<p><strong>图遍历：</strong></p>
+<p>根据计算图的定义，节点是算子或数据，连线是数据依赖关系。</p>
+<p>根据拓扑排序的方式（按照入度进行排序），将有访存需求的节点存入有序的list</p>
+<p><strong>内存分配：</strong></p>
+<p>遍历后，得到了算子的执行顺序和内存需求。然后，执行顺序和内存需求分别用于代码生成和内存分配。</p>
+<p>基于池的方法根据图遍历获得的内存需求来分配内存池，避免了上述内存浪费。此外，所提出的基于池的方法在每次训练迭代中重用所分配的内存，避免了上述内存分配和释放中的冗余。</p>
+<h2 id="实验"><a href="#实验" class="headerlink" title="实验"></a>实验</h2><p>设计了消融实验，分别测试了消除冗余、updater算子和内存管理的有效性。</p>
+<p><img src="/2023/01/07/tvm-2/v2-5fa4f2a0a6ca1cb2515da41999faa337_720w.png" alt="img"></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="http://youxiudeshouyeren.github.io">优秀的守夜人</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://youxiudeshouyeren.github.io/2023/01/07/tvm-2/">http://youxiudeshouyeren.github.io/2023/01/07/tvm-2/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://youxiudeshouyeren.github.io" target="_blank">优秀的守夜人</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="../../../../tags/TVM/">TVM</a><a class="post-meta__tags" href="../../../../tags/%E8%AE%BA%E6%96%87%E8%B0%83%E7%A0%94/">论文调研</a></div><div class="post_share"><div class="social-share" data-image="../../../../img/color1.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="../tvm-3/"><img class="prev-cover" src="../../../../img/color3.jpg" onerror="onerror=null;src='../../../../img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</div></div></a></div><div class="next-post pull-right"><a href="../%E7%9F%A5%E8%AF%86%E8%92%B8%E9%A6%8F%E6%A6%82%E8%BF%B0/"><img class="next-cover" src="../../../../img/color3.jpg" onerror="onerror=null;src='../../../../img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">知识蒸馏（一）概述</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><div><a href="../tvm-3/" title="TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器"><img class="cover" src="../../../../img/color3.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</div></div></a></div><div><a href="../relay-pass/" title="TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么"><img class="cover" src="../../../../img/color2.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么</div></div></a></div><div><a href="../%E6%96%B0%E5%A2%9E%E7%AE%97%E5%AD%90/" title="代码实践：向TVM新增算子"><img class="cover" src="../../../../img/color1.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">代码实践：向TVM新增算子</div></div></a></div><div><a href="../%E8%B0%83%E8%AF%95TVM/" title="调试TVM：在Python与C++混合编程中启动调试"><img class="cover" src="../../../../img/TVM-VTA%E7%BC%96%E8%AF%91%E6%A0%88.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">调试TVM：在Python与C++混合编程中启动调试</div></div></a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="../img/figure.jpg" onerror="this.onerror=null;this.src='../img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">优秀的守夜人</div><div class="author-info__description"></div></div><div class="card-info-data site-data is-center"><a href="../archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="../tags/"><div class="headline">标签</div><div class="length-num">5</div></a><a href="../categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://www.zhihu.com/people/shou-ye-ren-47-6"><i class="fab fa-zhihu"></i><span>Follow Me</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/youxiudeshouyeren" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="../mailto:1929724847@qq.com" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://www.zhihu.com/people/shou-ye-ren-47-6" target="_blank" title="Zhihu"><i class="fab fa-zhihu"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">深度学习编译器、加速器及神经网络压缩</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%BA%E6%96%87%E4%BF%A1%E6%81%AF"><span class="toc-number">1.</span> <span class="toc-text">论文信息</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#KunlunTVM%E6%A6%82%E8%BF%B0"><span class="toc-number">2.</span> <span class="toc-text">KunlunTVM概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%BE%E4%BC%98%E5%8C%96%E7%AD%96%E7%95%A5"><span class="toc-number">3.</span> <span class="toc-text">图优化策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%86%97%E4%BD%99%E7%AE%97%E5%AD%90%E6%B6%88%E9%99%A4"><span class="toc-number">3.1.</span> <span class="toc-text">冗余算子消除</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#updater%E7%AE%97%E5%AD%90"><span class="toc-number">3.2.</span> <span class="toc-text">updater算子</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86"><span class="toc-number">4.</span> <span class="toc-text">内存管理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BC%A0%E7%BB%9F%E7%9A%84%E5%86%85%E5%AD%98%E6%B1%A0%E7%AE%97%E6%B3%95"><span class="toc-number">4.1.</span> <span class="toc-text">传统的内存池算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%93%E7%94%A8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E7%AE%97%E6%B3%95"><span class="toc-number">4.2.</span> <span class="toc-text">专用内存管理算法</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AE%9E%E9%AA%8C"><span class="toc-number">5.</span> <span class="toc-text">实验</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/%E7%9F%A5%E8%AF%86%E8%92%B8%E9%A6%8F%E6%A6%82%E8%BF%B0/" title="知识蒸馏（一）概述">知识蒸馏（一）概述</a><time datetime="2023-01-07T10:05:44.000Z" title="发表于 2023-01-07 18:05:44">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/tvm-2/" title="TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展">TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展</a><time datetime="2023-01-07T09:58:54.000Z" title="发表于 2023-01-07 17:58:54">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/tvm-3/" title="TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</a><time datetime="2023-01-07T09:55:29.000Z" title="发表于 2023-01-07 17:55:29">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/relay-pass/" title="TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么">TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么</a><time datetime="2023-01-07T09:53:20.000Z" title="发表于 2023-01-07 17:53:20">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/batchNorm%E4%B8%8ELayerNorm/" title="BatchNorm与LayerNorm的部署优化加速">BatchNorm与LayerNorm的部署优化加速</a><time datetime="2023-01-07T09:50:07.000Z" title="发表于 2023-01-07 17:50:07">2023-01-07</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2023 By 优秀的守夜人</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div><div class="footer_custom_text">与我交流：qq：1929724847 wechat：include_jxr</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="../../../../js/utils.js"></script><script src="../../../../js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.min.js"></script><div class="js-pjax"></div></div></body></html>

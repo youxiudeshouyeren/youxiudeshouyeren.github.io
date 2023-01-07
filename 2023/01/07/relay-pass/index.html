@@ -1,0 +1,935 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么 | 优秀的守夜人</title><meta name="author" content="优秀的守夜人"><meta name="copyright" content="优秀的守夜人"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="ffffff"><meta name="description" content="pass的作用pass是编译器中用来对程序进行优化或分析的步骤，一个程序通常要经过多个pass，每个pass也可能执行多遍。关于TVM中的pass机制，请参考TVM的官方文档： https:&#x2F;&#x2F;tvm.apache.org&#x2F;docs&#x2F;arch&#x2F;pass_infra.htmltvm.apache.org&#x2F;docs&#x2F;arch&#x2F;pass_infra.html 本文粗略统计了Relay高层次pass，主要">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么">
+<meta property="og:url" content="http://youxiudeshouyeren.github.io/2023/01/07/relay-pass/index.html">
+<meta property="og:site_name" content="优秀的守夜人">
+<meta property="og:description" content="pass的作用pass是编译器中用来对程序进行优化或分析的步骤，一个程序通常要经过多个pass，每个pass也可能执行多遍。关于TVM中的pass机制，请参考TVM的官方文档： https:&#x2F;&#x2F;tvm.apache.org&#x2F;docs&#x2F;arch&#x2F;pass_infra.htmltvm.apache.org&#x2F;docs&#x2F;arch&#x2F;pass_infra.html 本文粗略统计了Relay高层次pass，主要">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youxiudeshouyeren.github.io/img/color2.jpg">
+<meta property="article:published_time" content="2023-01-07T09:53:20.000Z">
+<meta property="article:modified_time" content="2023-01-07T10:12:02.468Z">
+<meta property="article:author" content="优秀的守夜人">
+<meta property="article:tag" content="TVM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youxiudeshouyeren.github.io/img/color2.jpg"><link rel="shortcut icon" href="../../../../img/favicon.png"><link rel="canonical" href="http://youxiudeshouyeren.github.io/2023/01/07/relay-pass/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="stylesheet" href="../../../../css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2023-01-07 18:12:02'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 6.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/figure.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="tags/"><div class="headline">标签</div><div class="length-num">5</div></a><a href="categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="index.html"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('../../../../img/color2.jpg')"><nav id="nav"><span id="blog_name"><a id="site-name" href="index.html">优秀的守夜人</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="index.html"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2023-01-07T09:53:20.000Z" title="发表于 2023-01-07 17:53:20">2023-01-07</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2023-01-07T10:12:02.468Z" title="更新于 2023-01-07 18:12:02">2023-01-07</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="../../../../categories/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E5%99%A8/">深度学习编译器</a></span></div><div class="meta-secondline"></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h2 id="pass的作用"><a href="#pass的作用" class="headerlink" title="pass的作用"></a>pass的作用</h2><p>pass是编译器中用来对程序进行优化或分析的步骤，一个程序通常要经过多个pass，每个pass也可能执行多遍。关于TVM中的pass机制，请参考TVM的官方文档：</p>
+<p><a target="_blank" rel="noopener" href="https://tvm.apache.org/docs/arch/pass_infra.htmltvm.apache.org/docs/arch/pass_infra.html">https://tvm.apache.org/docs/arch/pass_infra.htmltvm.apache.org/docs/arch/pass_infra.html</a></p>
+<p>本文粗略统计了Relay高层次pass，主要想搞明白在高层次计算图优化中，编译器都做了哪些事。</p>
+<p>关于pass执行前后程序的变化，可以参考relay的测试文件夹，文中示例均来自<strong>tvm/tests/python/relay/</strong> ，由于精力有限，我只选取个别进行了输入输出的对比。</p>
+<h2 id="pass统计"><a href="#pass统计" class="headerlink" title="pass统计"></a>pass统计</h2><h3 id="DeadCodeElimination"><a href="#DeadCodeElimination" class="headerlink" title="DeadCodeElimination"></a>DeadCodeElimination</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DeadCodeElimination</td>
+<td>死节点消除</td>
+<td>删除未被使用到的表达式</td>
+<td>实现在tvm/src/relay/transforms/dead_code.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>实现流程应该是用UsageVisitor遍历每个节点，计数每个节点被用到的次数，当其为0时，在EliminatorMutator中将其去除。（<strong>这里没有详细探究实现细节，仅凭类名和函数名做合理猜测，可能与真实实现有出入，若想了解其具体实现，请参阅源代码</strong>，<strong>下面的pass同</strong>）</p>
+<h3 id="LazyGradientInit"><a href="#LazyGradientInit" class="headerlink" title="LazyGradientInit"></a>LazyGradientInit</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LazyGradientInit</td>
+<td>梯度延迟初始化</td>
+<td>减小梯度张量的内存开销，对ones, ones_like, zeros, zeros_like 这些算子只有使用到时再实例化</td>
+<td>实现在tvm/src/relay/transforms/lazy_gradient_init.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="FoldConstant"><a href="#FoldConstant" class="headerlink" title="FoldConstant"></a>FoldConstant</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FoldConstant（还有个FoldConstantExpr，针对常量表达式）</td>
+<td>常量折叠</td>
+<td>折叠relay中的常量。</td>
+<td>实现tvm/src/relay/transforms/fold_constant.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>这里代码中注释专门强调与QNN（TVM中导入已量化模型的框架）有关，QNN有些静态子图不能盲目折叠。</p>
+<h3 id="SplitArgs"><a href="#SplitArgs" class="headerlink" title="SplitArgs"></a>SplitArgs</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SplitArgs</td>
+<td>分割参数</td>
+<td>将有大量参数的函数分割成小块</td>
+<td>实现tvm/src/relay/transforms/split_args.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>根据对应python文件的注释，该pass在常量折叠时使用</p>
+<h3 id="FuseOps"><a href="#FuseOps" class="headerlink" title="FuseOps"></a>FuseOps</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FuseOps（其逆操作为DefuseOps）</td>
+<td>算子融合</td>
+<td>按照规则将算子融合为复合算子</td>
+<td>实现tvm/src/relay/transforms/fuse_ops.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>在TVM中每个算子都有个类型，论文中是injective（1对1映射、如add、exp）、reduction（多对少的映射，如sum、max、min）、complex-out-fusable（逐元素复用映射到输出，比如conv2d）、opaque（不能融合，比如sort），融合规则如下</p>
+<p><img src="/2023/01/07/relay-pass/v2-a9a599dbfc1cc3bd908219894c7f21db_720w.png" alt="img"></p>
+<p>不晓得现在融合方式有没有变（代码太复杂了，短时间没有理清(T＿T)</p>
+<h3 id="ToBasicBlockNormalForm"><a href="#ToBasicBlockNormalForm" class="headerlink" title="ToBasicBlockNormalForm"></a>ToBasicBlockNormalForm</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ToBasicBlockNormalForm</td>
+<td>将表达式转换为基本块范式</td>
+<td></td>
+<td>实现tvm/src/relay/transforms/to_basic_block_normal_form.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="ToANormalForm"><a href="#ToANormalForm" class="headerlink" title="ToANormalForm"></a>ToANormalForm</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ToANormalForm</td>
+<td>转换为A范式</td>
+<td>将图范式转换为A范式的形式</td>
+<td>tvm/src/relay/transforms/to_a_normal_form.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>google了一下A -Norm，是函数式编译器中程序的中间表示</p>
+<p>为什么这么做可参阅这里：</p>
+<p><a target="_blank" rel="noopener" href="https://matt.might.net/articles/a-normalization/">https://matt.might.net/articles/a-normalization/</a></p>
+<h3 id="ToCPS"><a href="#ToCPS" class="headerlink" title="ToCPS"></a>ToCPS</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ToCPS</td>
+<td>转换为CPS（continuation passing style）</td>
+<td>将表达式转换为连续传递风格</td>
+<td>tvm/src/relay/transforms/to_cps.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>关于CPS，戳这里<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Continuation-passing_style">https://en.wikipedia.org/wiki/Continuation-passing_style</a></p>
+<h3 id="ToGraphNormalForm"><a href="#ToGraphNormalForm" class="headerlink" title="ToGraphNormalForm"></a>ToGraphNormalForm</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ToGraphNormalForm</td>
+<td>转换为图范式</td>
+<td>将A范式转换为图范式</td>
+<td>tvm/src/relay/transforms/to_graph_normal_form.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="PartialEval"><a href="#PartialEval" class="headerlink" title="PartialEval"></a>PartialEval</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PartialEval</td>
+<td>部分求值</td>
+<td>在编译时做尽可能多的计算，减少运行时的开销</td>
+<td>tvm/src/relay/transforms/partial_eval.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="SimplifyInference"><a href="#SimplifyInference" class="headerlink" title="SimplifyInference"></a>SimplifyInference</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SimplifyInference</td>
+<td>简化推理</td>
+<td>对各种归一化层做了重写</td>
+<td>tvm/src/relay/transforms/simplify_inference.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>对batch_norm、dropout、instance_norm、layer_norm、group_norm、l2_norm做了重写</p>
+<p>Example：tvm/tests/python/relay/test_pass_simplify_inference.py</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 原始输入</span><br><span class="line">def @main(%x: Tensor[(10, 10), float32], %gamma: Tensor[(10), float32], %beta: Tensor[(10), float32], %moving_mean: Tensor[(10), float32], %moving_var: Tensor[(10), float32]) &#123;</span><br><span class="line">  %0 = add(%x, 1f);</span><br><span class="line">  %1 = nn.batch_norm(%0, %gamma, %beta, %moving_mean, %moving_var, epsilon=0.01f);</span><br><span class="line">  %2 = %1.0;</span><br><span class="line">  %3 = nn.dropout(%2);</span><br><span class="line">  %3.0</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#执行该pass</span><br><span class="line">def @main(%x: Tensor[(10, 10), float32] /* ty=Tensor[(10, 10), float32] */, %gamma: Tensor[(10), float32] /* ty=Tensor[(10), float32] */, %beta: Tensor[(10), float32] /* ty=Tensor[(10), float32] */, %moving_mean: Tensor[(10), float32] /* ty=Tensor[(10), float32] */, %moving_var: Tensor[(10), float32] /* ty=Tensor[(10), float32] */) -&gt; Tensor[(10, 10), float32] &#123;</span><br><span class="line">  %0 = add(%moving_var, 0.01f /* ty=float32 */) /* ty=Tensor[(10), float32] */;</span><br><span class="line">  %1 = sqrt(%0) /* ty=Tensor[(10), float32] */;</span><br><span class="line">  %2 = divide(1f /* ty=float32 */, %1) /* ty=Tensor[(10), float32] */;</span><br><span class="line">  %3 = add(%x, 1f /* ty=float32 */) /* ty=Tensor[(10, 10), float32] */;</span><br><span class="line">  %4 = multiply(%2, %gamma) /* ty=Tensor[(10), float32] */;</span><br><span class="line">  %5 = negative(%moving_mean) /* ty=Tensor[(10), float32] */;</span><br><span class="line">  %6 = multiply(%5, %4) /* ty=Tensor[(10), float32] */;</span><br><span class="line">  %7 = multiply(%3, %4) /* ty=Tensor[(10, 10), float32] */;</span><br><span class="line">  %8 = add(%6, %beta) /* ty=Tensor[(10), float32] */;</span><br><span class="line">  add(%7, %8) /* ty=Tensor[(10, 10), float32] */</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="FastMath"><a href="#FastMath" class="headerlink" title="FastMath"></a>FastMath</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FastMath</td>
+<td>快速数值计算</td>
+<td>将非线性激活函数用更快的近似方法代替</td>
+<td>tvm/src/relay/transforms/fast_math.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>包括exp（自然指数）、erf（误差函数）、tanh、softmax的fast版本</p>
+<h3 id="DynamicToStatic"><a href="#DynamicToStatic" class="headerlink" title="DynamicToStatic"></a>DynamicToStatic</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DynamicToStatic</td>
+<td>动态转静态</td>
+<td>若动态算子的输入是静态，将其转换为静态算子，重新执行类型推理和常量折叠</td>
+<td>tvm/src/relay/transforms/dynamic_to_static.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>包含算子：reshape、squeeze、tile、topk、broadcast_to、zeros、ones、one_hot、image.resize2d、full、nn.upsampling、nn.upsampling3d、nn.pad、strided_slice、sparse_to_dense</p>
+<h3 id="InferType"><a href="#InferType" class="headerlink" title="InferType"></a>InferType</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>InferType（InferTypeLocal类似）</td>
+<td>推断类型</td>
+<td>填入明确的类型信息</td>
+<td>tvm/src/relay/transforms/type_infer.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="EliminateCommonSubexpr"><a href="#EliminateCommonSubexpr" class="headerlink" title="EliminateCommonSubexpr"></a>EliminateCommonSubexpr</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EliminateCommonSubexpr</td>
+<td>消除公共子表达式</td>
+<td>若多个表达式是相同（属性相同且输入相同）的值且在多处使用，创建一个公共的变量替换这些表达式</td>
+<td>tvm/src/relay/transforms/eliminate_common_subexpr.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="CombineParallelConv2D"><a href="#CombineParallelConv2D" class="headerlink" title="CombineParallelConv2D"></a>CombineParallelConv2D</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CombineParallelConv2D（CombineParallelBatchMatmul类似）</td>
+<td>合并并行卷积</td>
+<td>将共享相同输入节点和相同参数的卷积（除了输出通道的数量可以不同）替换为单一的卷积。新的2d卷积的权重是原始权重的concat。conv2d之后的加法广播运算也会尽可能合并。这可以防止在有多个卷积分支的网络中启动多个内核，如Inception。</td>
+<td>tvm/src/relay/transforms/combine_parallel_conv2d.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="CombineParallelDense"><a href="#CombineParallelDense" class="headerlink" title="CombineParallelDense"></a>CombineParallelDense</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CombineParallelDense</td>
+<td>合并并行Dense层</td>
+<td>取代了共享相同输入节点、相同形状、没有定义 “ units “的dense操作，只用一个batch MM就可以。  这可以防止在有多个dense分支的网络中启动多个内核，例如BERT</td>
+<td>tvm/src/relay/transforms/combine_parallel_dense.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="FoldScaleAxis"><a href="#FoldScaleAxis" class="headerlink" title="FoldScaleAxis"></a>FoldScaleAxis</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FoldScaleAxis（ForwardFoldScaleAxis、BackwardFoldScaleAxis类似）</td>
+<td>折叠在轴上的缩放</td>
+<td>当某个轴上带有放缩时，将其融合进dense或conv2d的权重</td>
+<td>tvm/src/relay/transforms/fold_scale_axis.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># tvm/tests/python/relay/test_pass_fold_scale_axis.py</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#最初的输入</span><br><span class="line">def @main(%x: Tensor[(2, 4), float32] /* ty=Tensor[(2, 4), float32] */, %weight: Tensor[(3, 4), float32] /* ty=Tensor[(3, 4), float32] */, %in_bias: Tensor[(4), float32] /* ty=Tensor[(4), float32] */) -&gt; Tensor[(2, 3), float32] &#123;</span><br><span class="line">  %0 = multiply(%x, meta[relay.Constant][0] /* ty=Tensor[(4), float32] */) /* ty=Tensor[(2, 4), float32] */;</span><br><span class="line">  %1 = nn.relu(%0) /* ty=Tensor[(2, 4), float32] */;</span><br><span class="line">  %2 = add(%1, %in_bias) /* ty=Tensor[(2, 4), float32] */;</span><br><span class="line">  nn.dense(%2, %weight, units=None) /* ty=Tensor[(2, 3), float32] */</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#结果</span><br><span class="line">def @main(%x: Tensor[(2, 4), float32] /* ty=Tensor[(2, 4), float32] */, %weight: Tensor[(3, 4), float32] /* ty=Tensor[(3, 4), float32] */, %in_bias: Tensor[(4), float32] /* ty=Tensor[(4), float32] */) -&gt; Tensor[(2, 3), float32] &#123;</span><br><span class="line">  %0 = nn.relu(%x);</span><br><span class="line">  %1 = divide(%in_bias, meta[relay.Constant][0] /* ty=Tensor[(4), float32] */);</span><br><span class="line">  %2 = add(%0, %1);</span><br><span class="line">  %3 = multiply(%weight, meta[relay.Constant][0] /* ty=Tensor[(4), float32] */);</span><br><span class="line">  nn.dense(%2, %3, units=None)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>口头验证一下结果</strong>：</p>
+<p>输入的计算流程相当于：假设f是relu函数</p>
+<p>AX  -&gt;  f(AX)   -&gt;  f(AX)+B -&gt;W(f(AX)+B)   = Wf(AX)+WB</p>
+<p>执行该pass后：</p>
+<p>f(X)    -&gt;  B/A -&gt;  f(X)+B/A    -&gt;  WA  -&gt;  WA(f(X)+B/A) =WA(fX)+WB   由于Relu是留下正数，所以上下两个的计算结果是相等的</p>
+<p>通过该pass，将在运行时对输入的计算转换为对权重的计算，然后这部分可以在编译时就对权重进行修改，从而节约了运行时开销。BatchNorm分解后也可以用该pass融合进权重。</p>
+<h3 id="CanonicalizeOps"><a href="#CanonicalizeOps" class="headerlink" title="CanonicalizeOps"></a>CanonicalizeOps</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CanonicalizeOps</td>
+<td>规范化算子</td>
+<td>将算子转换为其简化版本</td>
+<td>tvm/src/relay/transforms/canonicalize_ops.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>在实现中仅涉及bias_add_op，将其转换为expand_dims+boradcast_add</p>
+<h3 id="AlterOpLayout"><a href="#AlterOpLayout" class="headerlink" title="AlterOpLayout"></a>AlterOpLayout</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AlterOpLayout（ConvertLayout类似）</td>
+<td>替换算子布局</td>
+<td>用于计算自定义布局的卷积或其他通用权重的预变换。</td>
+<td>tvm/src/relay/transforms/alter_op_layout.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="AutoSchedulerLayoutRewrite"><a href="#AutoSchedulerLayoutRewrite" class="headerlink" title="AutoSchedulerLayoutRewrite"></a>AutoSchedulerLayoutRewrite</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AutoSchedulerLayoutRewrite（MetaScheduleLayoutRewrite类似）</td>
+<td>AutoScheduler布局重写</td>
+<td>根据AutoScheduler（TVM的无模板自动调优器）生成的tile结构进行对应权重的存储布局重写</td>
+<td>tvm/src/relay/transforms/auto_scheduler_layout_rewrite.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>包括Conv2D、Conv2DWinograd、Conv3D、Matmul、Dense、BatchMatmul</p>
+<h3 id="Legalize"><a href="#Legalize" class="headerlink" title="Legalize"></a>Legalize</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Legalize</td>
+<td>合法化</td>
+<td>用另一个表达式替换一个表达式，以实现目标平台相关的优化</td>
+<td>tvm/src/relay/transforms/legalize.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>该pass主要用于QNN，关于该pass的作用可查阅QNN的论文。举例几个QNN合法化的算子：</p>
+<p>路径在tvm/src/relay/qnn/op/</p>
+<p>qnn.dense、qnn.batch_matmul、qnn.conv2d等</p>
+<h3 id="CanonicalizeCast"><a href="#CanonicalizeCast" class="headerlink" title="CanonicalizeCast"></a>CanonicalizeCast</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CanonicalizeCast</td>
+<td>规范化cast</td>
+<td>规范化cast表达式，使得算子融合更有效</td>
+<td>tvm/src/relay/transforms/canonicalize_cast.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="EtaExpand"><a href="#EtaExpand" class="headerlink" title="EtaExpand"></a>EtaExpand</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EtaExpand</td>
+<td></td>
+<td>为构造函数添加抽象，或者给一个函数添加全局变量</td>
+<td>tvm/src/relay/transforms/eta_expand.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="PartitionGraph"><a href="#PartitionGraph" class="headerlink" title="PartitionGraph"></a>PartitionGraph</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PartitionGraph</td>
+<td>划分图</td>
+<td>根据插入的标注节点（即compiler_begin和compiler_end），将一个输入函数分割成多个函数。这些节点被用作边界，将Relay函数划分为多个区域，可以卸载到不同的加速器后端。 每一个被分割的函数，也就是区域，都将被视为外部函数，并且它们将使用所提供的编译器进行代码生成。</td>
+<td>tvm/src/relay/transforms/partition_graph.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>该pass的作用可见专栏中的BYOC</p>
+<h3 id="Inline"><a href="#Inline" class="headerlink" title="Inline"></a>Inline</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inline</td>
+<td>内联</td>
+<td>将全局函数内联到Relay  IR Module</td>
+<td>tvm/src/relay/transforms/inline.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="RemoveUnusedFunctions"><a href="#RemoveUnusedFunctions" class="headerlink" title="RemoveUnusedFunctions"></a>RemoveUnusedFunctions</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RemoveUnusedFunctions</td>
+<td>删除未用到的函数</td>
+<td></td>
+<td>tvm/src/relay/backend/vm/removed_unused_funcs.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="SimplifyExpr"><a href="#SimplifyExpr" class="headerlink" title="SimplifyExpr"></a>SimplifyExpr</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SimplifyExpr</td>
+<td>简化表达式</td>
+<td>简化Relay表达式</td>
+<td>tvm/src/relay/transforms/simplify_expr.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>主要包含以下简化：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ConcretizeZerosLikeRewrite   </span><br><span class="line">ConcretizeOnesLikeRewrite   </span><br><span class="line">ConcretizeFullLikeRewrite   </span><br><span class="line">ConcretizeReshapeLikeRewrite   </span><br><span class="line">ConcretizeCollapseSumLikeRewrite   </span><br><span class="line">ConcretizeBroadcastToLikeRewrite   </span><br><span class="line">ConcretizeCastLikeRewrite   </span><br><span class="line">SimplifyRSqrt   </span><br><span class="line">EliminateIdentityRewrite   </span><br><span class="line">SimplifyReshape   </span><br><span class="line">SimplifyTranspose   </span><br><span class="line">SimplifySameCast   </span><br><span class="line">SimplifyConsecutiveCast   </span><br><span class="line">FullElementwise   </span><br><span class="line">SwitchAddMultiply   </span><br><span class="line">SimplifyAdjacentMultiplyOrAdd   </span><br><span class="line">SimplifyDQArgMax   </span><br><span class="line">SimplifyDQArgMin   </span><br><span class="line">SimplifyDQArgSort   </span><br><span class="line">SimplifyClipAndConsecutiveCast   </span><br><span class="line">SimplifyCastClip</span><br></pre></td></tr></table></figure>
+<h3 id="RelayToTIRTargetHook"><a href="#RelayToTIRTargetHook" class="headerlink" title="RelayToTIRTargetHook"></a>RelayToTIRTargetHook</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RelayToTIRTargetHook</td>
+<td>Relay到TIR目标的hook</td>
+<td>处理已在IRModule内的函数上注册的目标hook</td>
+<td>tvm/src/relay/transforms/target_hooks.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="ManifestAlloc"><a href="#ManifestAlloc" class="headerlink" title="ManifestAlloc"></a>ManifestAlloc</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ManifestAlloc（ManifestLifetimes类似）</td>
+<td>表现内存分配</td>
+<td></td>
+<td>tvm/src/relay/transforms/memory_alloc.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="PlanDevices"><a href="#PlanDevices" class="headerlink" title="PlanDevices"></a>PlanDevices</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PlanDevices</td>
+<td>计划设备</td>
+<td>确定每个relay子表达式运行和存储结果的虚拟设备（VirtualDevice）</td>
+<td>tvm/src/relay/transforms/device_planner.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="FlattenAtrousConv"><a href="#FlattenAtrousConv" class="headerlink" title="FlattenAtrousConv"></a>FlattenAtrousConv</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FlattenAtrousConv</td>
+<td>展平空洞卷积</td>
+<td>这种转换将空洞卷积扁平化，它对应于操作序列”space_to_batch_nd”-&gt;”conv2d””batch_to_space_nd”，并将它们转换成带有修改过的 “dilation “和重新计算的 “padding “参数的卷积子图。</td>
+<td>tvm/src/relay/transforms/flatten_atrous_conv.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="AnnotateUsedMemory"><a href="#AnnotateUsedMemory" class="headerlink" title="AnnotateUsedMemory"></a>AnnotateUsedMemory</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AnnotateUsedMemory</td>
+<td>标注使用的存储</td>
+<td>通过分析每个函数调用的输入/输出张量的有效性并计算这些张量所需的总内存量，标注每个函数调用点的最小所需内存。不支持动态类型。</td>
+<td>tvm/src/relay/backend/annotate_used_memory.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Before:</span><br><span class="line">  def @main(%input: Tensor[(1, 2, 2, 4), int8]) -&gt; Tensor[(1, 2, 2, 4), int8] &#123;</span><br><span class="line">    let %x_0 = fn (%x: Tensor[(1, 2, 2, 4), int8], Primitive=1) -&gt; Tensor[(1, 2, 2, 4), int8] &#123;</span><br><span class="line">      nn.max_pool2d(%x, pool_size=[1, 1], padding=[0, 0, 0, 0])</span><br><span class="line">    &#125;;</span><br><span class="line">    let %x_1 = %x_0(%input);</span><br><span class="line">    %x_1</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  After:</span><br><span class="line">  def @main(%input: Tensor[(1, 2, 2, 4), int8], io_used_memory=32) -&gt; Tensor[(1, 2, 2, 4), int8] &#123;</span><br><span class="line">    let %x_0: fn (%x: Tensor[(1, 2, 2, 4), int8], Primitive=1, used_memory=[32]) -&gt; Tensor[(1, 2,</span><br><span class="line">  2, 4), int8] &#123;</span><br><span class="line">       nn.max_pool2d(%x, pool_size=[1, 1], padding=[0, 0, 0, 0])</span><br><span class="line">    &#125;;</span><br><span class="line">    let %x_1: Tensor[(1, 2, 2, 4), int8] = %x_0(%input);</span><br><span class="line">    %x_1</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<h3 id="CapturePostDfsIndexInSpans"><a href="#CapturePostDfsIndexInSpans" class="headerlink" title="CapturePostDfsIndexInSpans"></a>CapturePostDfsIndexInSpans</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CapturePostDfsIndexInSpans</td>
+<td></td>
+<td></td>
+<td>tvm/src/relay/transforms/capture_postdfsindex_in_spans.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="AnnotateMemoryScope"><a href="#AnnotateMemoryScope" class="headerlink" title="AnnotateMemoryScope"></a>AnnotateMemoryScope</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AnnotateMemoryScope</td>
+<td>标注内存范围</td>
+<td></td>
+<td>tvm/src/relay/transforms/annotate_texture_storage.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="RemoveStandaloneReshapes"><a href="#RemoveStandaloneReshapes" class="headerlink" title="RemoveStandaloneReshapes"></a>RemoveStandaloneReshapes</h3><div class="table-container">
+<table>
+<thead>
+<tr>
+<th></th>
+<th>中文名</th>
+<th>作用</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RemoveStandaloneReshapes</td>
+<td>删除独立reshape</td>
+<td></td>
+<td>tvm/src/relay/transforms/remove_standalone_reshapes.cc</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="Pass简要分类"><a href="#Pass简要分类" class="headerlink" title="Pass简要分类"></a>Pass简要分类</h2><p>粗糙的分类，很可能不正确，仅供参考</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>主要作用</th>
+<th>包含pass</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>化简，去除运行时冗余，加快计算</td>
+<td>DeadCodeElimination、LazyGradientInit、FoldConstant、SplitArgs、PartialEval、SimplifyInference、FastMath、DynamicToStatic、EliminateCommonSubexpr、FoldScaleAxis、CanonicalizeOps、CanonicalizeCast、RemoveUnusedFunctions、SimplifyExpr、RemoveStandaloneReshapes</td>
+</tr>
+<tr>
+<td>程序语言形式相关</td>
+<td>ToBasicBlockNormalForm、ToANormalForm、ToCPS、ToGraphNormalForm、InferType、EtaExpand、Inline</td>
+</tr>
+<tr>
+<td>编译器相关的，设备、存储</td>
+<td>AlterOpLayout、AutoSchedulerLayoutRewrite、PartitionGraph、RelayToTIRTargetHook、ManifestAlloc、AnnotateUsedMemory、AnnotateMemoryScope</td>
+</tr>
+<tr>
+<td>算子内核生成、改进的</td>
+<td>FuseOps、CombineParallelConv2D、CombineParallelDense、FlattenAtrousConv</td>
+</tr>
+<tr>
+<td>执行检查</td>
+<td>Legalize</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>有些pass我也没搞懂啥作用，上述表格对应位置就空下了，在此抛砖引玉。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="http://youxiudeshouyeren.github.io">优秀的守夜人</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://youxiudeshouyeren.github.io/2023/01/07/relay-pass/">http://youxiudeshouyeren.github.io/2023/01/07/relay-pass/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://youxiudeshouyeren.github.io" target="_blank">优秀的守夜人</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="../../../../tags/TVM/">TVM</a></div><div class="post_share"><div class="social-share" data-image="../../../../img/color2.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="../batchNorm%E4%B8%8ELayerNorm/"><img class="prev-cover" src="../../../../img/color4.jpg" onerror="onerror=null;src='../../../../img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">BatchNorm与LayerNorm的部署优化加速</div></div></a></div><div class="next-post pull-right"><a href="../tvm-3/"><img class="next-cover" src="../../../../img/color3.jpg" onerror="onerror=null;src='../../../../img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><div><a href="../tvm-2/" title="TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展"><img class="cover" src="../../../../img/color1.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展</div></div></a></div><div><a href="../tvm-3/" title="TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器"><img class="cover" src="../../../../img/color3.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</div></div></a></div><div><a href="../%E6%96%B0%E5%A2%9E%E7%AE%97%E5%AD%90/" title="代码实践：向TVM新增算子"><img class="cover" src="../../../../img/color1.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">代码实践：向TVM新增算子</div></div></a></div><div><a href="../%E8%B0%83%E8%AF%95TVM/" title="调试TVM：在Python与C++混合编程中启动调试"><img class="cover" src="../../../../img/TVM-VTA%E7%BC%96%E8%AF%91%E6%A0%88.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">调试TVM：在Python与C++混合编程中启动调试</div></div></a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="../img/figure.jpg" onerror="this.onerror=null;this.src='../img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">优秀的守夜人</div><div class="author-info__description"></div></div><div class="card-info-data site-data is-center"><a href="../archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="../tags/"><div class="headline">标签</div><div class="length-num">5</div></a><a href="../categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://www.zhihu.com/people/shou-ye-ren-47-6"><i class="fab fa-zhihu"></i><span>Follow Me</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/youxiudeshouyeren" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="../mailto:1929724847@qq.com" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://www.zhihu.com/people/shou-ye-ren-47-6" target="_blank" title="Zhihu"><i class="fab fa-zhihu"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">深度学习编译器、加速器及神经网络压缩</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#pass%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="toc-number">1.</span> <span class="toc-text">pass的作用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#pass%E7%BB%9F%E8%AE%A1"><span class="toc-number">2.</span> <span class="toc-text">pass统计</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#DeadCodeElimination"><span class="toc-number">2.1.</span> <span class="toc-text">DeadCodeElimination</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#LazyGradientInit"><span class="toc-number">2.2.</span> <span class="toc-text">LazyGradientInit</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#FoldConstant"><span class="toc-number">2.3.</span> <span class="toc-text">FoldConstant</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SplitArgs"><span class="toc-number">2.4.</span> <span class="toc-text">SplitArgs</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#FuseOps"><span class="toc-number">2.5.</span> <span class="toc-text">FuseOps</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ToBasicBlockNormalForm"><span class="toc-number">2.6.</span> <span class="toc-text">ToBasicBlockNormalForm</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ToANormalForm"><span class="toc-number">2.7.</span> <span class="toc-text">ToANormalForm</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ToCPS"><span class="toc-number">2.8.</span> <span class="toc-text">ToCPS</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ToGraphNormalForm"><span class="toc-number">2.9.</span> <span class="toc-text">ToGraphNormalForm</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PartialEval"><span class="toc-number">2.10.</span> <span class="toc-text">PartialEval</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SimplifyInference"><span class="toc-number">2.11.</span> <span class="toc-text">SimplifyInference</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#FastMath"><span class="toc-number">2.12.</span> <span class="toc-text">FastMath</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DynamicToStatic"><span class="toc-number">2.13.</span> <span class="toc-text">DynamicToStatic</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#InferType"><span class="toc-number">2.14.</span> <span class="toc-text">InferType</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#EliminateCommonSubexpr"><span class="toc-number">2.15.</span> <span class="toc-text">EliminateCommonSubexpr</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CombineParallelConv2D"><span class="toc-number">2.16.</span> <span class="toc-text">CombineParallelConv2D</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CombineParallelDense"><span class="toc-number">2.17.</span> <span class="toc-text">CombineParallelDense</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#FoldScaleAxis"><span class="toc-number">2.18.</span> <span class="toc-text">FoldScaleAxis</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CanonicalizeOps"><span class="toc-number">2.19.</span> <span class="toc-text">CanonicalizeOps</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AlterOpLayout"><span class="toc-number">2.20.</span> <span class="toc-text">AlterOpLayout</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AutoSchedulerLayoutRewrite"><span class="toc-number">2.21.</span> <span class="toc-text">AutoSchedulerLayoutRewrite</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Legalize"><span class="toc-number">2.22.</span> <span class="toc-text">Legalize</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CanonicalizeCast"><span class="toc-number">2.23.</span> <span class="toc-text">CanonicalizeCast</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#EtaExpand"><span class="toc-number">2.24.</span> <span class="toc-text">EtaExpand</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PartitionGraph"><span class="toc-number">2.25.</span> <span class="toc-text">PartitionGraph</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Inline"><span class="toc-number">2.26.</span> <span class="toc-text">Inline</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RemoveUnusedFunctions"><span class="toc-number">2.27.</span> <span class="toc-text">RemoveUnusedFunctions</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SimplifyExpr"><span class="toc-number">2.28.</span> <span class="toc-text">SimplifyExpr</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RelayToTIRTargetHook"><span class="toc-number">2.29.</span> <span class="toc-text">RelayToTIRTargetHook</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ManifestAlloc"><span class="toc-number">2.30.</span> <span class="toc-text">ManifestAlloc</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#PlanDevices"><span class="toc-number">2.31.</span> <span class="toc-text">PlanDevices</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#FlattenAtrousConv"><span class="toc-number">2.32.</span> <span class="toc-text">FlattenAtrousConv</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AnnotateUsedMemory"><span class="toc-number">2.33.</span> <span class="toc-text">AnnotateUsedMemory</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CapturePostDfsIndexInSpans"><span class="toc-number">2.34.</span> <span class="toc-text">CapturePostDfsIndexInSpans</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AnnotateMemoryScope"><span class="toc-number">2.35.</span> <span class="toc-text">AnnotateMemoryScope</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RemoveStandaloneReshapes"><span class="toc-number">2.36.</span> <span class="toc-text">RemoveStandaloneReshapes</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Pass%E7%AE%80%E8%A6%81%E5%88%86%E7%B1%BB"><span class="toc-number">3.</span> <span class="toc-text">Pass简要分类</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/%E7%9F%A5%E8%AF%86%E8%92%B8%E9%A6%8F%E6%A6%82%E8%BF%B0/" title="知识蒸馏（一）概述">知识蒸馏（一）概述</a><time datetime="2023-01-07T10:05:44.000Z" title="发表于 2023-01-07 18:05:44">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/tvm-2/" title="TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展">TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展</a><time datetime="2023-01-07T09:58:54.000Z" title="发表于 2023-01-07 17:58:54">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/tvm-3/" title="TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</a><time datetime="2023-01-07T09:55:29.000Z" title="发表于 2023-01-07 17:55:29">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/relay-pass/" title="TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么">TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么</a><time datetime="2023-01-07T09:53:20.000Z" title="发表于 2023-01-07 17:53:20">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/batchNorm%E4%B8%8ELayerNorm/" title="BatchNorm与LayerNorm的部署优化加速">BatchNorm与LayerNorm的部署优化加速</a><time datetime="2023-01-07T09:50:07.000Z" title="发表于 2023-01-07 17:50:07">2023-01-07</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2023 By 优秀的守夜人</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div><div class="footer_custom_text">与我交流：qq：1929724847 wechat：include_jxr</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="../../../../js/utils.js"></script><script src="../../../../js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.min.js"></script><div class="js-pjax"></div></div></body></html>

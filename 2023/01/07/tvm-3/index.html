@@ -1,0 +1,239 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器 | 优秀的守夜人</title><meta name="author" content="优秀的守夜人"><meta name="copyright" content="优秀的守夜人"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="ffffff"><meta name="description" content="论文信息论文出处：Z. Chen et al., “Bring Your Own Codegen to Deep Learning Compiler.” arXiv, May 03, 2021. Accessed: Jun. 27, 2022. [Online]. Available: http:&#x2F;&#x2F;arxiv.org&#x2F;abs&#x2F;2105.03215 Motivation：深度学习加速器需要编译栈来">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器">
+<meta property="og:url" content="http://youxiudeshouyeren.github.io/2023/01/07/tvm-3/index.html">
+<meta property="og:site_name" content="优秀的守夜人">
+<meta property="og:description" content="论文信息论文出处：Z. Chen et al., “Bring Your Own Codegen to Deep Learning Compiler.” arXiv, May 03, 2021. Accessed: Jun. 27, 2022. [Online]. Available: http:&#x2F;&#x2F;arxiv.org&#x2F;abs&#x2F;2105.03215 Motivation：深度学习加速器需要编译栈来">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://youxiudeshouyeren.github.io/img/color3.jpg">
+<meta property="article:published_time" content="2023-01-07T09:55:29.000Z">
+<meta property="article:modified_time" content="2023-01-07T10:01:26.794Z">
+<meta property="article:author" content="优秀的守夜人">
+<meta property="article:tag" content="TVM">
+<meta property="article:tag" content="论文调研">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://youxiudeshouyeren.github.io/img/color3.jpg"><link rel="shortcut icon" href="../../../../img/favicon.png"><link rel="canonical" href="http://youxiudeshouyeren.github.io/2023/01/07/tvm-3/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="stylesheet" href="../../../../css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2023-01-07 18:01:26'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 6.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/img/figure.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="tags/"><div class="headline">标签</div><div class="length-num">5</div></a><a href="categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="index.html"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('../../../../img/color3.jpg')"><nav id="nav"><span id="blog_name"><a id="site-name" href="index.html">优秀的守夜人</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="index.html"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2023-01-07T09:55:29.000Z" title="发表于 2023-01-07 17:55:29">2023-01-07</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2023-01-07T10:01:26.794Z" title="更新于 2023-01-07 18:01:26">2023-01-07</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="../../../../categories/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E7%BC%96%E8%AF%91%E5%99%A8/">深度学习编译器</a></span></div><div class="meta-secondline"></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h2 id="论文信息"><a href="#论文信息" class="headerlink" title="论文信息"></a>论文信息</h2><p><strong>论文出处</strong>：Z. Chen <em>et al.</em>, “Bring Your Own Codegen to Deep Learning Compiler.” arXiv, May 03, 2021. Accessed: Jun. 27, 2022. [Online]. Available: <a target="_blank" rel="noopener" href="http://arxiv.org/abs/2105.03215">http://arxiv.org/abs/2105.03215</a></p>
+<p><strong>Motivation</strong>：深度学习加速器需要编译栈来将模型映射到指令集，如果每个加速器供应商都开发一个专用深度学习编译堆栈，无疑会带来巨大的成本，也无法利用现存的基础设施。该文提出了一个框架，允许用户<strong>重用现有的编译器中尽可能多的组件，只专注于专有的代码生成工具的开发</strong>。</p>
+<p><strong>主要贡献：</strong></p>
+<ul>
+<li>提出了一个统一的框架，允许不同的硬件加速器供应商通过以即插即用的方式集成他们的代码工具，复用尽可能多的硬件无关的优化</li>
+<li>为开发人员提供了灵活的接口，以便1）对计算图进行标注和分区；2）对分区图应用特定于硬件的优化</li>
+<li>平均2000行代码的集成方法的案例研究</li>
+</ul>
+<p><strong>另外，TVM文档中有该框架的教程，关键字即论文题目</strong></p>
+<h2 id="框架设计与实现"><a href="#框架设计与实现" class="headerlink" title="框架设计与实现"></a>框架设计与实现</h2><p>编译流程如下：</p>
+<p><img src="/2023/01/07/tvm-3/v2-7f25bbdff0cfb2e6daf1d6b0c3dd66a2_720w.png" alt="img"></p>
+<p>白色的部分是深度学习编译器已有的，不同后端共享；灰色的部分是硬件相关的，需要为每个加速器定制。</p>
+<p>流程：</p>
+<p>1.模型加载，转换为统一的IR表示</p>
+<p>2.硬件无关的计算图优化，常数折叠、算子简化等</p>
+<p>3.图划分，划分为host和accelerator两个部分。</p>
+<h3 id="图划分"><a href="#图划分" class="headerlink" title="图划分"></a>图划分</h3><p>将模型切割为不同的子图，对加速器运行友好（例如加速器支持的算子，或者在加速器上执行效率更高的算子）的部分被卸载，其余部分仍然让host执行。深度学习编译器通常有多层IR，比如TVM的Relay和TensorIR，和MLIR（顾名思义），因此需要决定在哪个IR级别进行划分。</p>
+<p>该框架在高层IR（即仍旧保留算子名称和属性的IR）进行划分，出于以下考虑：</p>
+<p>1）一些硬件供应商手工制作了一个内核库。在这种情况下，唯一需要的信息是将每个算子映射到对应的内核的名称和属性，而不是由低级IR合并的硬件信息。</p>
+<p>2)一些硬件供应商使用自己的低级IR，需要从高层IR转换</p>
+<p><img src="/2023/01/07/tvm-3/v2-48d8043e1b0601978333ac29fe90d713_720w.png" alt="img"></p>
+<p><strong>基于模式的分组：</strong></p>
+<p>许多硬件加速器使用指令执行算子。例如Conv2d、Add、Relu的序列通常可以映射到单个算子，以最小化处理中间结果的开销（算子融合）。因此，硬件供应商需要使用模式匹配算法来匹配IR节点序列，并用复合指令替换他们。</p>
+<p>该框架提供了模式匹配机制，如下代码描述的匹配一个Conv2d-add-relu</p>
+<p><img src="/2023/01/07/tvm-3/v2-0af33c45b24fb6193c63f26da7cf2480_720w.png" alt="img"></p>
+<p>通过上述匹配模式表，可以将图3（上）a转换为b</p>
+<p><strong>注解：</strong></p>
+<p>在根据模式将node进行分组后，下一步是根据编程模型指定支持的算子列表。例如下代码注册了一个函数，指示所有浮点类型的Conv2D节点被注释并卸载到MyAccel中</p>
+<p><img src="/2023/01/07/tvm-3/v2-b1727215d08f6f69223ad79f9da0c7d2_720w.png" alt="img"></p>
+<p>通过一组注解函数，在图中生成了多个区域，这些区域可以被卸载到目标加速器上，如上图3（c） 。</p>
+<p>在上图例中将区域都卸载到一个目标MyAcc上，但该框架支持将区域卸载到多个目标上，并可以指定优先级，将算子卸载到最高优先级的目标上。</p>
+<p><strong>基于成本的划分：</strong></p>
+<p>贪心的合并支持的算子以进行充分的算子融合是理想的，但由于资源限制（如片上存储大小、计算单元数量），对于一些加速器来说不适用。除了注解外，该框架还提供另一种基于成本的划分。用户设置最大可融合的数量，例如将3N设为阈值，图3（c）中的区域应当分割为图3(d)中的区域1和3。</p>
+<p>将一个区域从host卸载到device通常会引入数据传输和内核调用开销，如果没有耗时的计算，应该将区域留在host执行，该框架支持按用户指定的标准将区域回调到host上。</p>
+<p>最后，每个可卸载区域被封装成一个单独的函数，并用一个target属性标记，该属性指示执行后端，如图3（e）。</p>
+<h3 id="特定加速器的处理"><a href="#特定加速器的处理" class="headerlink" title="特定加速器的处理"></a>特定加速器的处理</h3><p>在划分之后，一个图被分割成多个不同后端处理的区域，在host上的区域可以有效利用从现有的深度学习编译器中进行的标准优化，然而卸载到加速器的区域可能需要一些特定于硬件的优化（例如融合、替换、存储布局转换、量化等），这些优化通常是专有的，无法在深度学习编译器中处理。</p>
+<p><img src="/2023/01/07/tvm-3/v2-b8b7d13e39aae629c2841e3e2a2eea79_720w.png" alt="img"></p>
+<p>上图左边是量化，右边是存储布局转换。</p>
+<h3 id="代码生成"><a href="#代码生成" class="headerlink" title="代码生成"></a>代码生成</h3><p>编译流的最后一步是代码生成。</p>
+<p><img src="/2023/01/07/tvm-3/v2-4cbcb1487d36b4a40076f99f47832739_720w.png" alt="img"></p>
+<p>该框架通过遍历图并为每个图节点调用相应的代码生成来生成一个子模块。当遍历到host上的节点时，可以利用现有深度学习编译器中的代码生成，如TVM和XLA，它们能为通用设备（如CPU和GPU）生成代码。当遍历到特定target标注的节点（即划分函数）时，生成一个外部函数调用作为运行时内核调用的hook。同时调用加速器特定的代码生成，其包含了硬件供应商提供的代码生成工具和编译流，为该节点中的划分函数生成一个“加速器子模块”。</p>
+<p>加速器子模块中生成的代码必须以一定的格式表示，以便在运行时可以被加速器的执行引擎消耗。该框架提供了一下代码生成格式：</p>
+<ol>
+<li><strong>标准图表示</strong>    使用json文件记录算子名称、属性和数据流，这种格式易读。例如NVIDIA TensorRT和Arm计算库使用该框架的json生成器来搭建与运行时之间的桥梁。 </li>
+<li><strong>标准C代码</strong></li>
+</ol>
+<p>尽管选项1易于实现和部署，但它需要一个图引擎来包含所有受支持的算子的实现，这可能会导致较大的二进制大小。</p>
+<p>该框架提供了一个标准的C代码生成器，可以发射内核库函数调用并将它们与host子模块链接在一起来支持加速器的专有内核库，这个解决方案简化了代码打包，因为host代码通常是兼容C的。当库函数调用成为host子模块一部分时，硬件供应商可以充分利用现有的运行时系统。</p>
+<p><strong>3. 自定义图表示</strong></p>
+<p>某些加速器有专用格式来表示神经网络，如ARM Ethos-N和Xilinx Vitis AI，为了满足这种需求，该框架提供了一组统一的API来定制序列化的代码格式：1）将生成的代码编译和序列化为一个bit流，以便其可以与其他子模块一起实例化；2）在运行时反序列化来自子模块的bit流</p>
+<p>至此，针对DNN模型的编译和打包模块已经完成，之后进入运行时系统加载模块并执行推理。</p>
+<h3 id="运行时"><a href="#运行时" class="headerlink" title="运行时"></a>运行时</h3><p>运行时系统负责执行模型图的推理，并将算子和子图分发到目标平台。图执行引擎可以是一个简单的数据流图visitor，处理大多数CNN；也可以是一个虚拟机来执行字节码，处理现代模型中呈现出的动态性和控制流。</p>
+<p><img src="/2023/01/07/tvm-3/v2-b17639113aaeca597169daca1adb532e_720w.png" alt="img"></p>
+<p>运行时系统流程如下：</p>
+<ol>
+<li><strong>初始化元数据模块</strong></li>
+</ol>
+<p>DNN模型的大量权重参数在推理时一般是常数，应该包含在运行时模块中。不同的子模块都需要这些权重，该框架提供了一个统一的模块来管理，称为元数据模块。如上图6（a）中，元数据模块被设计为一个包含所有常量、host子模块、加速器子模块的层次化模块。在初始化时，元数据模块将这些常量加载到运行时数据项中，这是在host或加速器上预分配的一组内存buffer。（如上图</p>
+<p>6<strong>①</strong>）</p>
+<p>除了权重常量外，数据项还维护了模型的输入、输出以及中间结果。由于划分函数（即算子融合后的复合算子）已经是外部函数调用。因此其中间结果不会在数据项中得到维护。</p>
+<ol>
+<li><strong>执行host上的图节点</strong></li>
+</ol>
+<p>当调用推理时，host子模块加载模型图并启动执行引擎（上图6<strong>②</strong>）,开始依次执行图节点。如上图6<strong>③</strong>子模块可以直接访问数据项来读取输入，调用内核执行计算，将结果写入数据项。</p>
+<ol>
+<li><strong>执行加速器上的图节点</strong></li>
+</ol>
+<p>如上图6（b），host执行引擎执行F1，这是对加速器的外部函数调用（图6<strong>④</strong>）。执行细节如图6（c）。</p>
+<p>执行过程包含两个步骤：1）加载模块后初始化硬件供应商定制的F1执行引擎；2）启动内核，与数据项做交互</p>
+<h2 id="案例研究"><a href="#案例研究" class="headerlink" title="案例研究"></a>案例研究</h2><p>在TVM中实现了该框架。使用该框架集成了ARM Ethos-N处理器（2405行代码）、Xilinx Vitis AI(1924行代码)。还包括许多软件工具包，NVIDIA TensorRT（4403行代码），ARM计算库（2188行代码）、德州仪器深度学习工具（3085行代码）。</p>
+<p>在进行案例研究前，带着以下几个问题：</p>
+<ol>
+<li>相比于baseline，模型可获得的加速是多少？</li>
+<li>有多少算子可以卸载到目标平台？</li>
+<li>卸载图中的MAC占整个图的多少？</li>
+<li>卸载开销是多少？</li>
+</ol>
+<h3 id="NVIDIA-Jeston-AGX-Xavier-GPUs"><a href="#NVIDIA-Jeston-AGX-Xavier-GPUs" class="headerlink" title="NVIDIA Jeston AGX Xavier GPUs"></a>NVIDIA Jeston AGX Xavier GPUs</h3><p>Jeston AGX Xavier包含一个512核的Volta GPU，两个深度学习加速器，一个8核的NVIDIA Carmel ARMv8.2 CPU。主要用于机器人、无人机和其他自主机器人。</p>
+<p>本案例将TensorRT集成到框架中。TensorRT支持32bit全精度和16bit半精度，当运行具有全精度模型的半精度TensorRT内核时，利用引入的部分量化机制，将全精度输入数据实时转换为半精度。</p>
+<p>将TVM内置CUDA代码生成作为baseline，不使用AutoTVM进行自动调优。</p>
+<p><img src="/2023/01/07/tvm-3/v2-10e007fb5240f9ce4fa8e1f98d22733d_720w.png" alt="img"></p>
+<p>对于SSD和Faster RCNN，控制流和其他一些算子不支持，因此卸载率不是100%，但是所有的MAC都可以卸载到TensorRT上。</p>
+<p>表2显示了在基于成本的划分之前和之后的子图数量以及端到端延迟。</p>
+<p><img src="/2023/01/07/tvm-3/v2-b1336eac1c05b04994aac44bb7d69395_720w.png" alt="img"></p>
+<p>基于成本的划分之后，一些可以卸载到TensorRT算子，但是并不是计算密集型（transpose、max、reshape），仍旧在host上执行，以减小调用以及数据传输开销。</p>
+<h3 id="Xilinx-Edge-and-Cloud-FPGAs"><a href="#Xilinx-Edge-and-Cloud-FPGAs" class="headerlink" title="Xilinx Edge and Cloud FPGAs"></a>Xilinx Edge and Cloud FPGAs</h3><p>该案例关于Xilinx  Vitis AI，这是Xilinx的部署栈，用于Xilinx边缘设备和Alveo加速卡。Vitis AI具有自定义的bit流来表示划分的子图，且使用Vitis AI自定义运行时模块解释bit流，并向部署到的Xilinx DPU调度算子。由于Xilinx DPU只专注定点计算，因此该案例的集成包含了定制的量化。Vitis AI运行时将数据输入Xilinx的量化器，计算量化的scale和零点。其余部分仍是全精度浮点数，只有卸载到FPGA的部分执行定点运算。</p>
+<p>下表为该案例的性能对比，baseline是TVM内置的LLVM代码生成，运行平台在Intel Xeon Gold 6252 CPU。</p>
+<p><img src="/2023/01/07/tvm-3/v2-3cee7e68858413382f11077b74fdeb9a_720w.png" alt="img"></p>
+<p>对于Faster RCNN ，Vitis AI在当时只支持模型中的一个内核，将其backbone Resnet-50卸载到FPGA，其他NMS（非极大抑制）、split等无法卸载。</p>
+<p>将模型执行时间分解来评估卸载开销。与为每个子图构建一个执行引擎的TensorRT不同，Xilinx Vitis-AI运行时能够直接在其DPU上执行该图。（这句话不太明白，TensorRT的每个子图执行都要初始化一些东西吗？？)</p>
+<p><img src="/2023/01/07/tvm-3/v2-7580502e98aa3d4bf8e0fb2d1febc073_720w.png" alt="img"></p>
+<p><img src="/2023/01/07/tvm-3/v2-f63cf234bd92f3bcb19b749043d38a2e_720w.png" alt="img"></p>
+<p>两款FPGA在启动内核上占的比例区别较明显，这是因为边缘设备算力弱，计算时间长导致计算耗时相对比例更高导致的吗？？？</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="http://youxiudeshouyeren.github.io">优秀的守夜人</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="http://youxiudeshouyeren.github.io/2023/01/07/tvm-3/">http://youxiudeshouyeren.github.io/2023/01/07/tvm-3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="http://youxiudeshouyeren.github.io" target="_blank">优秀的守夜人</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="../../../../tags/TVM/">TVM</a><a class="post-meta__tags" href="../../../../tags/%E8%AE%BA%E6%96%87%E8%B0%83%E7%A0%94/">论文调研</a></div><div class="post_share"><div class="social-share" data-image="../../../../img/color3.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="../relay-pass/"><img class="prev-cover" src="../../../../img/color2.jpg" onerror="onerror=null;src='../../../../img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么</div></div></a></div><div class="next-post pull-right"><a href="../tvm-2/"><img class="next-cover" src="../../../../img/color1.png" onerror="onerror=null;src='../../../../img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><div><a href="../tvm-2/" title="TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展"><img class="cover" src="../../../../img/color1.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展</div></div></a></div><div><a href="../relay-pass/" title="TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么"><img class="cover" src="../../../../img/color2.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么</div></div></a></div><div><a href="../%E6%96%B0%E5%A2%9E%E7%AE%97%E5%AD%90/" title="代码实践：向TVM新增算子"><img class="cover" src="../../../../img/color1.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">代码实践：向TVM新增算子</div></div></a></div><div><a href="../%E8%B0%83%E8%AF%95TVM/" title="调试TVM：在Python与C++混合编程中启动调试"><img class="cover" src="../../../../img/TVM-VTA%E7%BC%96%E8%AF%91%E6%A0%88.png" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-01-07</div><div class="title">调试TVM：在Python与C++混合编程中启动调试</div></div></a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="../img/figure.jpg" onerror="this.onerror=null;this.src='../img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">优秀的守夜人</div><div class="author-info__description"></div></div><div class="card-info-data site-data is-center"><a href="../archives/"><div class="headline">文章</div><div class="length-num">7</div></a><a href="../tags/"><div class="headline">标签</div><div class="length-num">5</div></a><a href="../categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://www.zhihu.com/people/shou-ye-ren-47-6"><i class="fab fa-zhihu"></i><span>Follow Me</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/youxiudeshouyeren" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="../mailto:1929724847@qq.com" target="_blank" title="Email"><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://www.zhihu.com/people/shou-ye-ren-47-6" target="_blank" title="Zhihu"><i class="fab fa-zhihu"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">深度学习编译器、加速器及神经网络压缩</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%BA%E6%96%87%E4%BF%A1%E6%81%AF"><span class="toc-number">1.</span> <span class="toc-text">论文信息</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A1%86%E6%9E%B6%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0"><span class="toc-number">2.</span> <span class="toc-text">框架设计与实现</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9B%BE%E5%88%92%E5%88%86"><span class="toc-number">2.1.</span> <span class="toc-text">图划分</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%89%B9%E5%AE%9A%E5%8A%A0%E9%80%9F%E5%99%A8%E7%9A%84%E5%A4%84%E7%90%86"><span class="toc-number">2.2.</span> <span class="toc-text">特定加速器的处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90"><span class="toc-number">2.3.</span> <span class="toc-text">代码生成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BF%90%E8%A1%8C%E6%97%B6"><span class="toc-number">2.4.</span> <span class="toc-text">运行时</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A1%88%E4%BE%8B%E7%A0%94%E7%A9%B6"><span class="toc-number">3.</span> <span class="toc-text">案例研究</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#NVIDIA-Jeston-AGX-Xavier-GPUs"><span class="toc-number">3.1.</span> <span class="toc-text">NVIDIA Jeston AGX Xavier GPUs</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Xilinx-Edge-and-Cloud-FPGAs"><span class="toc-number">3.2.</span> <span class="toc-text">Xilinx Edge and Cloud FPGAs</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/%E7%9F%A5%E8%AF%86%E8%92%B8%E9%A6%8F%E6%A6%82%E8%BF%B0/" title="知识蒸馏（一）概述">知识蒸馏（一）概述</a><time datetime="2023-01-07T10:05:44.000Z" title="发表于 2023-01-07 18:05:44">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/tvm-2/" title="TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展">TVM第三方论文调研（二）：KunlunTVM，昆仑芯片的TVM编译器扩展</a><time datetime="2023-01-07T09:58:54.000Z" title="发表于 2023-01-07 17:58:54">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/tvm-3/" title="TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器">TVM第三方论文调研（三） BYOC，将自己的硬件加速器对接深度学习编译器</a><time datetime="2023-01-07T09:55:29.000Z" title="发表于 2023-01-07 17:55:29">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/relay-pass/" title="TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么">TVM设计与架构：Relay Pass，深度学习编译器的高层次优化在做什么</a><time datetime="2023-01-07T09:53:20.000Z" title="发表于 2023-01-07 17:53:20">2023-01-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="../2023/01/07/batchNorm%E4%B8%8ELayerNorm/" title="BatchNorm与LayerNorm的部署优化加速">BatchNorm与LayerNorm的部署优化加速</a><time datetime="2023-01-07T09:50:07.000Z" title="发表于 2023-01-07 17:50:07">2023-01-07</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2023 By 优秀的守夜人</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div><div class="footer_custom_text">与我交流：qq：1929724847 wechat：include_jxr</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="../../../../js/utils.js"></script><script src="../../../../js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.min.js"></script><div class="js-pjax"></div></div></body></html>
